@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Drag & Drop Form Builder</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .container { display: flex; gap: 20px; }
+        .fields, .form-builder { width: 50%; padding: 10px; border: 2px dashed #ccc; min-height: 300px; }
+        .draggable { padding: 10px; background: #f0f0f0; border: 1px solid #ccc; cursor: grab; margin-bottom: 5px; }
+        .form-field { margin-bottom: 10px; }
+        .remove-btn { cursor: pointer; color: red; margin-left: 10px; }
+    </style>
+</head>
+<body>
+    <h2>Drag & Drop Form Builder</h2>
+    <div class="container">
+        <div class="fields">
+            <div class="draggable" draggable="true" data-type="text">Text Input</div>
+            <div class="draggable" draggable="true" data-type="email">Email Input</div>
+            <div class="draggable" draggable="true" data-type="number">Number Input</div>
+        </div>
+        <div class="form-builder" id="formBuilder" ondragover="allowDrop(event)" ondrop="drop(event)">
+            <p id="placeholderText">Drag fields here</p>
+        </div>
+    </div>
+    <button onclick="submitForm(event)">Submit Form</button>
+    
+    <script>
+        function allowDrop(event) {
+            event.preventDefault();
+        }
+
+        function drop(event) {
+            event.preventDefault();
+            let type = event.dataTransfer.getData("text/plain"); 
+            if (!type) return;
+
+            let formBuilder = document.getElementById("formBuilder");
+            document.getElementById("placeholderText")?.remove(); // Remove placeholder text
+
+            let field = document.createElement("div");
+            field.className = "form-field";
+            
+            let input = document.createElement("input");
+            input.type = type;
+            input.name = type + Math.floor(Math.random() * 1000);
+            input.placeholder = "Enter " + type;
+
+            let removeBtn = document.createElement("span");
+            removeBtn.innerHTML = "✖";
+            removeBtn.className = "remove-btn";
+            removeBtn.onclick = function () { 
+                field.remove(); 
+                if (!formBuilder.hasChildNodes()) {
+                    formBuilder.innerHTML = '<p id="placeholderText">Drag fields here</p>';
+                }
+            };
+
+            field.appendChild(input);
+            field.appendChild(removeBtn);
+            formBuilder.appendChild(field);
+        }
+
+        document.querySelectorAll(".draggable").forEach(item => {
+            item.addEventListener("dragstart", function(event) {
+                event.dataTransfer.setData("text/plain", event.target.getAttribute("data-type"));
+            });
+        });
+
+        function submitForm(event) {
+            event.preventDefault();
+            let inputs = document.querySelectorAll(".form-builder input");
+            let formData = new FormData();
+
+            inputs.forEach(input => formData.append(input.name, input.value));
+
+            // Ensure an email field is included in the form submission
+            let emailInput = document.querySelector(".form-builder input[type='email']");
+            if (!emailInput || !emailInput.value.includes("@")) {
+                alert("Please add a valid email field and enter an email.");
+                return;
+            }
+            formData.append("email", emailInput.value);
+
+            fetch("submit.php", {
+                method: "POST",
+                body: formData
+            })
+            .then(response => response.text())
+            .then(data => alert(data))
+            .catch(error => console.error("Error:", error));
+        }
+    </script>
+</body>
+</html>
