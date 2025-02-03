@@ -4,14 +4,22 @@
 	require_once '../../vendor/autoload.php';
 	
 	if ($_SERVER["REQUEST_METHOD"] == "POST") {
-		$emailReceiver = filter_var($_POST['email'] ?? '', FILTER_VALIDATE_EMAIL); 
+		$emailReceiver = filter_var($_POST['email'] ?? '', FILTER_VALIDATE_EMAIL);
+		
 		if (!$emailReceiver) {
 			echo "Invalid email address.";
 			exit;
 		}
+		
 		$subject = "New Form Submission";
 		$body = "<h2>New Form Submission</h2>";
-
+		
+		foreach ($_POST as $key => $value) {
+			if ($key !== 'email') { 
+				$body .= "<p><strong>" . ucfirst($key) . ":</strong> " . htmlspecialchars($value) . "</p>";
+			}
+		}
+		
 		$mail = new PHPMailer(true);
 		
 		try {
