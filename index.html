@@ -1,97 +1,255 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Drag & Drop Form Builder</title>
-    <style>
-        body { font-family: Arial, sans-serif; padding: 20px; }
-        .container { display: flex; gap: 20px; }
-        .fields, .form-builder { width: 50%; padding: 10px; border: 2px dashed #ccc; min-height: 300px; }
-        .draggable { padding: 10px; background: #f0f0f0; border: 1px solid #ccc; cursor: grab; margin-bottom: 5px; }
-        .form-field { margin-bottom: 10px; }
-        .remove-btn { cursor: pointer; color: red; margin-left: 10px; }
-    </style>
-</head>
-<body>
-    <h2>Drag & Drop Form Builder</h2>
-    <div class="container">
-        <div class="fields">
-            <div class="draggable" draggable="true" data-type="text">Text Input</div>
-            <div class="draggable" draggable="true" data-type="email">Email Input</div>
-            <div class="draggable" draggable="true" data-type="number">Number Input</div>
-        </div>
-        <div class="form-builder" id="formBuilder" ondragover="allowDrop(event)" ondrop="drop(event)">
-            <p id="placeholderText">Drag fields here</p>
-        </div>
-    </div>
-    <button onclick="submitForm(event)">Submit Form</button>
-    
-    <script>
-        function allowDrop(event) {
-            event.preventDefault();
-        }
-
-        function drop(event) {
-            event.preventDefault();
-            let type = event.dataTransfer.getData("text/plain"); 
-            if (!type) return;
-
-            let formBuilder = document.getElementById("formBuilder");
-            document.getElementById("placeholderText")?.remove(); // Remove placeholder text
-
-            let field = document.createElement("div");
-            field.className = "form-field";
-            
-            let input = document.createElement("input");
-            input.type = type;
-            input.name = type + Math.floor(Math.random() * 1000);
-            input.placeholder = "Enter " + type;
-
-            let removeBtn = document.createElement("span");
-            removeBtn.innerHTML = "✖";
-            removeBtn.className = "remove-btn";
-            removeBtn.onclick = function () { 
-                field.remove(); 
-                if (!formBuilder.hasChildNodes()) {
-                    formBuilder.innerHTML = '<p id="placeholderText">Drag fields here</p>';
-                }
-            };
-
-            field.appendChild(input);
-            field.appendChild(removeBtn);
-            formBuilder.appendChild(field);
-        }
-
-        document.querySelectorAll(".draggable").forEach(item => {
-            item.addEventListener("dragstart", function(event) {
-                event.dataTransfer.setData("text/plain", event.target.getAttribute("data-type"));
-            });
-        });
-
-        function submitForm(event) {
-            event.preventDefault();
-            let inputs = document.querySelectorAll(".form-builder input");
-            let formData = new FormData();
-
-            inputs.forEach(input => formData.append(input.name, input.value));
-
-            // Ensure an email field is included in the form submission
-            let emailInput = document.querySelector(".form-builder input[type='email']");
-            if (!emailInput || !emailInput.value.includes("@")) {
-                alert("Please add a valid email field and enter an email.");
-                return;
-            }
-            formData.append("email", emailInput.value);
-
-            fetch("submit.php", {
-                method: "POST",
-                body: formData
-            })
-            .then(response => response.text())
-            .then(data => alert(data))
-            .catch(error => console.error("Error:", error));
-        }
-    </script>
-</body>
+	<head>
+		<meta charset="UTF-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1.0">
+		<title>Drag & Drop Contact Form Builder</title>
+		<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css">
+		<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+		<script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
+		<style>
+			body { padding: 20px; }
+			.form-builder { display: flex; flex-direction: column; gap: 20px; }
+			.form-elements { display: flex; gap: 10px; justify-content: center; flex-wrap: nowrap; overflow-x: auto; padding: 10px; border-bottom: 2px solid #ddd; }
+			.form-preview { min-height: 400px; background: #f9f9f9; padding: 20px; border: 2px dashed #ddd; margin-top: 20px; }
+			.form-elements .drag-item { padding: 10px; background: #007bff; color: white; cursor: grab; border-radius: 5px; text-align: center; min-width: 120px; }
+			.form-group { position: relative; padding: 10px; background: #fff; border: 1px solid #ccc; margin-bottom: 5px; cursor: grab; }
+			.remove-btn { position: absolute; top: 5px; right: 10px; color: red; cursor: pointer; font-weight: bold; }
+			.invalid { border-color: red !important; }
+			.error-message { color: red; font-size: 12px; display: none; }
+			h4.text-center {
+			background: linear-gradient(45deg, #007bff, #0056b3);
+			color: white;
+			padding: 15px;
+			border-radius: 8px;
+			}
+			.form-elements {
+			background: #f1f1f1;
+			border-radius: 10px;
+			box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+			}
+			.form-elements .drag-item {
+			background: #28a745;
+			color: white;
+			font-weight: bold;
+			box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+			}
+			.form-preview {
+			background: #ffffff;
+			border: 2px solid #ddd;
+			border-radius: 10px;
+			box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+			}
+			#elements
+			{
+			display:flex;
+			gap:10px;
+			}
+			
+		</style>
+	</head>
+	<body>
+		<div class="container">
+			<h4 class="text-center mb-4">Contact Form Builder</h4>
+			<div class="form-builder">
+				<div class="form-elements">
+					<div id="elements">
+						<div class="drag-item" data-type="text" draggable="true">Text Field</div>
+						<div class="drag-item" data-type="email" draggable="true">Email</div>
+						<div class="drag-item" data-type="number" draggable="true">Number</div>
+						<div class="drag-item" data-type="radio" draggable="true">Radio</div>
+						<div class="drag-item" data-type="checkbox" draggable="true">Checkbox</div>
+						<div class="drag-item" data-type="textarea" draggable="true">Textarea</div>
+						<div class="drag-item" data-type="select" draggable="true">Dropdown</div>
+					</div>
+				</div>
+				
+				<div class="form-preview">
+					<h4>Form Preview</h4>
+					<form id="formContainer"></form>
+					<button id="submitButton" type="button" class="btn btn-success mt-3" style="display:none;">Submit Form</button>
+				</div>
+			</div>
+		</div>
+		
+		<script>
+			$(document).ready(function () {
+				let formAdded = false;
+				
+				$(".drag-item").on("dragstart", function (event) {
+					event.originalEvent.dataTransfer.setData("text", $(this).data("type"));
+				});
+				
+				$(".form-preview").on("dragover", function (event) {
+					event.preventDefault();
+				});
+				
+				$(".form-preview").on("drop", function (event) {
+					event.preventDefault();
+					let type = event.originalEvent.dataTransfer.getData("text");
+					if (type) {
+						let element = createElement(type);
+						$("#formContainer").append(element);
+						formAdded = true;
+						if (formAdded) {
+							$("#submitButton").show();
+						}
+					}
+				});
+				
+				function createElement(type) {
+					let fieldId = "field_" + Math.floor(Math.random() * 1000);
+					let element = "";
+					
+					switch (type) {
+						case "text":
+						case "email":
+						case "number":
+						let inputType = type === "text" ? "text" : type === "email" ? "email" : "number";
+						let label = type.charAt(0).toUpperCase() + type.slice(1);
+						let errorText = type === "email" ? "Please enter a valid email." : "This field is required.";
+						element = `<div class="form-group">
+						<span class="remove-btn">&times;</span>
+						<label for="${fieldId}">${label}</label>
+						<input type="${inputType}" class="form-control" id="${fieldId}" name="${fieldId}" required>
+						<small class="error-message">${errorText}</small>
+						</div>`;
+						break;
+						
+						case "radio":
+						element = `<div class="form-group">
+						<span class="remove-btn">&times;</span>
+						<label>Radio</label>
+						<input type="radio" name="radio_group" required>
+						<small class="error-message">Please select an option.</small>
+						</div>`;
+						break;
+						
+						case "checkbox":
+						element = `<div class="form-group">
+						<span class="remove-btn">&times;</span>
+						<label>Checkbox</label>
+						<input type="checkbox" name="${fieldId}" required>
+						<small class="error-message">Please check this box.</small>
+						</div>`;
+						break;
+						
+						case "textarea":
+						element = `<div class="form-group">
+						<span class="remove-btn">&times;</span>
+						<label>Textarea</label>
+						<textarea class="form-control" name="${fieldId}" required></textarea>
+						<small class="error-message">This field is required.</small>
+						</div>`;
+						break;
+						
+						case "select":
+						element = `<div class="form-group">
+						<span class="remove-btn">&times;</span>
+						<label>Dropdown</label>
+						<select class="form-control" name="${fieldId}" required>
+						<option value="">Select an option</option>
+						</select>
+						<small class="error-message">Please select an option.</small>
+						<button type="button" class="btn btn-link add-option-btn">Add Option</button>
+						</div>`;
+						break;
+					}
+					return element;
+				}
+				
+				$(document).on("click", ".add-option-btn", function () {
+					let selectElement = $(this).closest(".form-group").find("select");
+					let newOption = prompt("Enter the new option:");
+					if (newOption) {
+						selectElement.append(`<option>${newOption}</option>`);
+					}
+				});
+				
+				$(document).on("click", ".remove-btn", function () {
+					$(this).closest(".form-group").remove();
+					formAdded = $("#formContainer .form-group").length > 0;
+					if (!formAdded) {
+						$("#submitButton").hide();
+					}
+				});
+				
+				new Sortable(document.getElementById("formContainer"), {
+					animation: 150,
+					ghostClass: "sortable-ghost",
+				});
+				
+				$("#submitButton").on("click", function (event) {
+					event.preventDefault();
+					let isValid = true;
+					
+					// Collect form data
+					let formData = {};
+					
+					$("#formContainer .form-group").each(function () {
+						let field = $(this).find("input, textarea, select");
+						let errorMessage = $(this).find(".error-message");
+						
+						// Email validation
+						if (field.attr("type") === "email") {
+							const emailPattern = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+							if (!emailPattern.test(field.val())) {
+								field.addClass("invalid");
+								errorMessage.text("Please enter a valid email address.");
+								errorMessage.show();
+								isValid = false;
+								} else {
+								field.removeClass("invalid");
+								errorMessage.hide();
+							}
+							formData.email = field.val(); // Save email
+						}
+						
+						// Checkbox and Radio validation
+						else if (field.attr("type") === "checkbox" || field.attr("type") === "radio") {
+							if (!field.is(":checked")) {
+								field.addClass("invalid");
+								errorMessage.show();
+								isValid = false;
+								} else {
+								field.removeClass("invalid");
+								errorMessage.hide();
+							}
+							formData[field.attr("name")] = field.is(":checked") ? field.val() : null;
+						}
+						
+						// General required field validation
+						else if (field.val().trim() === "") {
+							field.addClass("invalid");
+							errorMessage.show();
+							isValid = false;
+							} else {
+							field.removeClass("invalid");
+							errorMessage.hide();
+						}
+						
+						// Save data for each field
+						formData[field.attr("name")] = field.val();
+					});
+					
+					if (isValid) {
+						// Send form data via AJAX to PHP
+						$.ajax({
+							url: "submit.php", // Path to your PHP script
+							method: "POST",
+							data: formData,
+							success: function(response) {
+								alert(response); // Response from PHP script
+							},
+							error: function() {
+								alert("Error submitting form");
+							}
+						});
+						} else {
+						alert("Please fill all required fields!");
+					}
+				});
+			});
+		</script>
+	</body>
 </html>
